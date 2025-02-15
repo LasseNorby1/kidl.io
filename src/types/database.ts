@@ -4,6 +4,8 @@ export interface Subject {
   description: string;
   icon: string;
   color: string;
+  parent_id?: string;
+  children?: Subject[];
 }
 
 export interface Course {

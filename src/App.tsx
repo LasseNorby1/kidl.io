@@ -8,6 +8,8 @@ import { useAuth } from "@/lib/auth";
 import Home from "./components/home";
 import LandingPage from "./components/landing/LandingPage";
 import SubjectContent from "./components/subjects/SubjectContent";
+import CourseContent from "./components/subjects/CourseContent";
+import LessonContent from "./components/subjects/LessonContent";
 import SearchResults from "./components/search/SearchResults";
 
 function App() {
@@ -51,6 +53,30 @@ function App() {
           isAuthenticated ? (
             <AppLayout>
               <SubjectContent />
+            </AppLayout>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/course/:courseId"
+        element={
+          isAuthenticated ? (
+            <AppLayout>
+              <CourseContent />
+            </AppLayout>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/lesson/:lessonId"
+        element={
+          isAuthenticated ? (
+            <AppLayout>
+              <LessonContent />
             </AppLayout>
           ) : (
             <Navigate to="/" replace />

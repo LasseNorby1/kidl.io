@@ -62,6 +62,7 @@ const Header = ({
       const { data } = await supabase
         .from("subjects")
         .select("*")
+        .is("parent_id", null) // Only fetch subjects without a parent
         .order("name");
       setSubjects(data || []);
     };
@@ -146,7 +147,7 @@ const Header = ({
             <ArrowLeft className="h-5 w-5" />
           </Button>
         )}
-        <h1 className="text-2xl font-bold text-primary">Learning Dashboard</h1>
+        <h1 className="text-2xl font-bold text-primary">kidl.io</h1>
         {user?.role === "child" && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import SubjectCard from "./SubjectCard";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Book,
   Calculator,
@@ -23,6 +24,10 @@ const SubjectGrid = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [featuredCourses, setFeaturedCourses] = useState<any[]>([]);
+  const [popularCourses, setPopularCourses] = useState<any[]>([]);
+  const [trendingCourses, setTrendingCourses] = useState<any[]>([]);
+  const [newCourses, setNewCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const handleSubjectClick = (subjectId: string) => {
@@ -31,189 +36,131 @@ const SubjectGrid = ({
 
   const getSubjectIcon = (iconName: string) => {
     const icons = {
-      Calculator: <Calculator className="w-12 h-12" />,
-      Microscope: <Microscope className="w-12 h-12" />,
-      Book: <Book className="w-12 h-12" />,
-      Globe: <Globe className="w-12 h-12" />,
-      Palette: <Palette className="w-12 h-12" />,
-      Music: <Music className="w-12 h-12" />,
+      Calculator: <Calculator className="w-5 h-5" />,
+      Microscope: <Microscope className="w-5 h-5" />,
+      Book: <Book className="w-5 h-5" />,
+      Globe: <Globe className="w-5 h-5" />,
+      Palette: <Palette className="w-5 h-5" />,
+      Music: <Music className="w-5 h-5" />,
     };
-    return icons[iconName] || <Book className="w-12 h-12" />;
+    return icons[iconName] || <Book className="w-5 h-5" />;
   };
 
   useEffect(() => {
     const fetchSubjectsAndProgress = async () => {
       try {
-        const { data: subjects, error: subjectsError } = await supabase.from(
-          "subjects",
-        ).select(`
+        // Fetch courses with their subject relationships
+        const { data: coursesData } = await supabase.from("courses").select(`
             *,
             subject_courses!inner(
-              course_id,
-              courses!inner(
-                id,
-                title,
-                description,
-                difficulty,
-                estimated_duration,
-                thumbnail_url,
-                age_range,
-                average_rating,
-                total_ratings,
-                course_authors!inner(
-                  authors!inner(name)
-                ),
-                lessons(id)
-              )
+              subjects!inner(*)
             )
           `);
 
-        if (subjectsError) throw subjectsError;
+        if (coursesData) {
+          // Set featured courses (first 6)
+          setFeaturedCourses(coursesData.slice(0, 6));
 
-        // For each subject, calculate progress across all courses
-        const subjectsWithProgress = await Promise.all(
-          subjects.map(async (subject) => {
-            // Get all lessons from all courses in this subject
-            const lessonIds = subject.subject_courses
-              .flatMap((sc) => sc.courses.lessons)
-              .map((l) => l.id);
+          // Set popular courses (sort by difficulty)
+          setPopularCourses(
+            [...coursesData]
+              .sort((a, b) => (a.difficulty === "beginner" ? -1 : 1))
+              .slice(0, 6),
+          );
 
-            if (!lessonIds.length || !user)
-              return {
-                ...subject,
-                title: subject.name,
-                icon: getSubjectIcon(subject.icon),
-                progress: 0,
-              };
+          // Set trending courses (random selection for demo)
+          setTrendingCourses(
+            [...coursesData].sort(() => Math.random() - 0.5).slice(0, 6),
+          );
 
-            // Get progress for all lessons
-            const { data: progress } = await supabase
-              .from("user_progress")
-              .select("*")
-              .eq("user_id", user.id)
-              .in("lesson_id", lessonIds);
+          // Set new courses (last 6)
+          setNewCourses(coursesData.slice(-6));
+        }
 
-            // Calculate progress percentage
-            const completedLessons =
-              progress?.filter((p) => p.completed)?.length || 0;
-            const progressPercentage =
-              (completedLessons / lessonIds.length) * 100;
+        // Fetch main subjects
+        const { data: subjectsData } = await supabase
+          .from("subjects")
+          .select("*")
+          .is("parent_id", null);
 
-            return {
-              ...subject,
-              title: subject.name,
-              icon: getSubjectIcon(subject.icon),
-              progress: progressPercentage,
-            };
-          }),
-        );
-
-        setSubjects(subjectsWithProgress);
+        setSubjects(subjectsData || []);
       } catch (error) {
-        console.error("Error fetching subjects:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchSubjectsAndProgress();
-  }, [user]);
+  }, []);
 
   if (loading) {
     return (
-      <div className="w-full h-full bg-white p-8 flex items-center justify-center">
+      <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  return (
-    <div className="w-full h-full bg-white p-8">
-      {/* Featured Courses Section */}
-      <div className="mb-12">
-        <h2 className="text-2xl font-bold mb-6">Featured Courses</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {subjects.slice(0, 3).map((subject) => {
-            const featuredCourse = subject.subject_courses?.[0]?.courses;
-            if (!featuredCourse) return null;
-
-            const icon = getSubjectIcon(subject.icon);
-            return (
-              <div
-                key={featuredCourse.id}
-                className="group relative aspect-[16/9] overflow-hidden rounded-lg cursor-pointer bg-gray-100"
-                onClick={() => handleSubjectClick(subject.id)}
-              >
-                <div className="w-full h-full">
-                  <img
-                    src={
-                      featuredCourse.thumbnail_url ||
-                      `https://images.unsplash.com/photo-${Math.floor(Math.random() * 10) + 1}?w=800&auto=format&fit=crop`
-                    }
-                    alt={featuredCourse.title}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                  />
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent">
-                  <div className="absolute bottom-0 left-0 p-4 text-white">
-                    <div className="text-sm font-medium mb-1 text-primary-foreground/80">
-                      {subject.name}
-                    </div>
-                    <h3 className="text-lg font-semibold mb-1">
-                      {featuredCourse.title}
-                    </h3>
-                    <div className="flex items-center gap-2 text-sm text-white/80">
-                      <div className="flex items-center gap-1">
-                        <span className="capitalize">
-                          {featuredCourse.difficulty}
-                        </span>
-                      </div>
-                      <span>•</span>
-                      <span>{featuredCourse.age_range} years</span>
-                      <span>•</span>
-                      <div className="flex items-center gap-1">
-                        <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
-                        <span>
-                          {featuredCourse.average_rating?.toFixed(1) || "New"}
-                          {featuredCourse.total_ratings > 0 && (
-                            <span className="text-xs">
-                              {" "}
-                              ({featuredCourse.total_ratings})
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      <span>•</span>
-                      <span>{featuredCourse.estimated_duration} mins</span>
-                    </div>
-                    <div className="text-sm text-white/60 mt-1">
-                      By{" "}
-                      {featuredCourse.course_authors
-                        .map((ca) => ca.authors.name)
-                        .join(", ")}
-                    </div>
-                  </div>
-                </div>
+  const renderCourseSection = (title: string, courses: any[]) => (
+    <div className="mb-8">
+      <h2 className="text-2xl font-bold mb-4">{title}</h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+        {courses.map((course) => (
+          <div
+            key={course.id}
+            className="cursor-pointer"
+            onClick={() => navigate(`/course/${course.id}`)}
+          >
+            <Card className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow h-full">
+              <div className="aspect-video relative">
+                <img
+                  src={
+                    course.thumbnail_url ||
+                    `https://source.unsplash.com/random/800x600/?education,${encodeURIComponent(course.title)}`
+                  }
+                  alt={course.title}
+                  className="w-full h-full object-cover"
+                />
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* All Subjects Grid */}
-      <h2 className="text-2xl font-bold mb-6">All Subjects</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-8">
-        {subjects.map((subject, index) => (
-          <SubjectCard
-            key={index}
-            title={subject.title}
-            icon={subject.icon}
-            progress={subject.progress}
-            color={subject.color}
-            onClick={() => handleSubjectClick(subject.id)}
-          />
+              <CardContent className="p-4">
+                <h3 className="font-semibold mb-1">{course.title}</h3>
+                <p className="text-sm text-gray-500 mb-2 line-clamp-2">
+                  {course.description}
+                </p>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span className="capitalize">{course.difficulty}</span>
+                  <span>•</span>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-yellow-500" />
+                    <span>{course.average_rating?.toFixed(1) || "New"}</span>
+                  </div>
+                  <span>•</span>
+                  <span>{course.estimated_duration} mins</span>
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  By{" "}
+                  {course.course_authors
+                    ?.map((ca) => ca.authors.name)
+                    .join(", ")}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         ))}
       </div>
+    </div>
+  );
+
+  return (
+    <div className="p-8 space-y-8">
+      {featuredCourses.length > 0 &&
+        renderCourseSection("Featured", featuredCourses)}
+      {popularCourses.length > 0 &&
+        renderCourseSection("Most Popular", popularCourses)}
+      {trendingCourses.length > 0 &&
+        renderCourseSection("Trending", trendingCourses)}
+      {newCourses.length > 0 && renderCourseSection("New Courses", newCourses)}
     </div>
   );
 };
