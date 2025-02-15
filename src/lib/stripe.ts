@@ -1,16 +1,12 @@
-import { loadStripe } from "@stripe/stripe-js";
 import { supabase } from "./supabase";
-
-const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-
-if (!STRIPE_PUBLIC_KEY) {
-  console.error("Missing Stripe publishable key");
-}
-
-export const stripePromise = loadStripe(STRIPE_PUBLIC_KEY || "");
 
 export const createSubscription = async (priceId: string) => {
   try {
+    // In development, just simulate success
+    if (process.env.NODE_ENV === "development") {
+      return { success: true };
+    }
+
     // Create a checkout session on Supabase Edge Function
     const {
       data: { sessionId, url },
@@ -23,6 +19,7 @@ export const createSubscription = async (priceId: string) => {
 
     // Redirect to Stripe Checkout
     window.location.href = url;
+    return { success: true };
   } catch (error) {
     console.error("Error creating subscription:", error);
     throw error;

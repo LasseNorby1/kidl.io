@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Book, Star, Medal } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 
 interface Achievement {
   id: string;
@@ -27,53 +29,86 @@ interface ProgressSidebarProps {
   weeklyProgress?: number;
 }
 
-const ProgressSidebar = ({
-  achievements = [
-    {
-      id: "1",
-      title: "Math Master",
-      description: "Complete 10 math lessons",
-      earned: true,
-    },
-    {
-      id: "2",
-      title: "Science Explorer",
-      description: "Finish all science experiments",
-      earned: false,
-    },
-    {
-      id: "3",
-      title: "Language Pro",
-      description: "Learn 100 new words",
-      earned: true,
-    },
-  ],
-  completedLessons = [
-    {
-      id: "1",
-      title: "Addition and Subtraction",
-      subject: "Math",
-      completed: true,
-      date: "2024-03-20",
-    },
-    {
-      id: "2",
-      title: "Solar System",
-      subject: "Science",
-      completed: true,
-      date: "2024-03-19",
-    },
-    {
-      id: "3",
-      title: "Basic Grammar",
-      subject: "English",
-      completed: true,
-      date: "2024-03-18",
-    },
-  ],
-  totalProgress = 65,
-  weeklyProgress = 80,
-}: ProgressSidebarProps) => {
+const ProgressSidebar = () => {
+  const { user } = useAuth();
+  const [achievements, setAchievements] = useState([]);
+  const [completedLessons, setCompletedLessons] = useState([]);
+  const [totalProgress, setTotalProgress] = useState(0);
+  const [weeklyProgress, setWeeklyProgress] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user) return;
+
+      try {
+        // Get achievements
+        const { data: achievementsData } = await supabase
+          .from("user_achievements")
+          .select("*, achievements(*)")
+          .eq("user_id", user.id)
+          .order("earned_at", { ascending: false });
+
+        // Get completed lessons
+        const { data: progressData } = await supabase
+          .from("user_progress")
+          .select(
+            `
+            *,
+            lessons!inner (title),
+            subjects!inner (name)
+          `,
+          )
+          .eq("user_id", user.id)
+          .eq("completed", true)
+          .order("updated_at", { ascending: false });
+
+        // Calculate total progress
+        const { data: totalLessons } = await supabase
+          .from("lessons")
+          .select("id");
+
+        const totalCompleted = progressData?.length || 0;
+        const total = totalLessons?.length || 1;
+        const progress = Math.round((totalCompleted / total) * 100);
+
+        // Calculate weekly progress
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const weeklyCompleted = progressData?.filter(
+          (p) => new Date(p.updated_at) > oneWeekAgo,
+        ).length;
+        const weeklyProgress = Math.round((weeklyCompleted / total) * 100);
+
+        setAchievements(achievementsData || []);
+        setCompletedLessons(
+          progressData?.map((p) => ({
+            id: p.id,
+            title: p.lessons?.title,
+            subject: p.subjects?.name,
+            completed: p.completed,
+            date: new Date(p.updated_at).toLocaleDateString(),
+          })) || [],
+        );
+        setTotalProgress(progress);
+        setWeeklyProgress(weeklyProgress);
+      } catch (error) {
+        console.error("Error loading sidebar data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="w-[312px] h-full bg-gray-50 border-l border-gray-200 p-4 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   return (
     <div className="w-[312px] h-full bg-gray-50 border-l border-gray-200 p-4">
       <div className="space-y-6">

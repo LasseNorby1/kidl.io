@@ -76,7 +76,14 @@ const updateProfileStats = async (userId: string) => {
     // Get all user progress
     const { data: progress } = await supabase
       .from("user_progress")
-      .select("completed, score, time_spent")
+      .select(
+        `
+        completed, 
+        score, 
+        time_spent,
+        lessons!inner (course_id)
+      `,
+      )
       .eq("user_id", userId);
 
     if (!progress) return;
@@ -109,15 +116,15 @@ const updateProfileStats = async (userId: string) => {
 };
 
 export const getProgress = async (userId: string, lessonId: string) => {
+  if (!userId || !lessonId) return null;
+
   try {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("user_progress")
       .select("*")
       .eq("user_id", userId)
       .eq("lesson_id", lessonId)
-      .single();
-
-    if (error) throw error;
+      .maybeSingle();
     return data;
   } catch (error) {
     console.error("Error fetching progress:", error);
@@ -127,10 +134,27 @@ export const getProgress = async (userId: string, lessonId: string) => {
 
 export const getSubjectProgress = async (userId: string, subjectId: string) => {
   try {
+    // First get all courses for this subject
+    const { data: courses } = await supabase
+      .from("subject_courses")
+      .select(
+        `
+        course_id,
+        courses!inner(id)
+      `,
+      )
+      .eq("subject_id", subjectId);
+
+    if (!courses) return { completed: 0, total: 0, percentage: 0 };
+
+    // Then get all lessons for these courses
     const { data: lessons } = await supabase
       .from("lessons")
       .select("id")
-      .eq("subject_id", subjectId);
+      .in(
+        "course_id",
+        courses.map((c) => c.course_id),
+      );
 
     if (!lessons) return { completed: 0, total: 0, percentage: 0 };
 

@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import SubjectCard from "./SubjectCard";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Book,
   Calculator,
@@ -8,6 +11,7 @@ import {
   Microscope,
   Music,
   Palette,
+  Star,
 } from "lucide-react";
 
 interface SubjectGridProps {
@@ -15,76 +19,148 @@ interface SubjectGridProps {
 }
 
 const SubjectGrid = ({
-  onSubjectClick = (subject: string) => {
-    // Navigate to subject page
-    window.location.href = `/subject/${subject.toLowerCase()}`;
-  },
+  onSubjectClick = (subject: string) => {},
 }: SubjectGridProps) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const [filteredSubjects, setFilteredSubjects] = useState([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [featuredCourses, setFeaturedCourses] = useState<any[]>([]);
+  const [popularCourses, setPopularCourses] = useState<any[]>([]);
+  const [trendingCourses, setTrendingCourses] = useState<any[]>([]);
+  const [newCourses, setNewCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const subjects = [
-    {
-      title: "Mathematics",
-      icon: <Calculator className="w-12 h-12" />,
-      progress: 75,
-      color: "bg-blue-100",
-    },
-    {
-      title: "Science",
-      icon: <Microscope className="w-12 h-12" />,
-      progress: 60,
-      color: "bg-green-100",
-    },
-    {
-      title: "Languages",
-      icon: <Book className="w-12 h-12" />,
-      progress: 85,
-      color: "bg-yellow-100",
-    },
-    {
-      title: "Geography",
-      icon: <Globe className="w-12 h-12" />,
-      progress: 45,
-      color: "bg-purple-100",
-    },
-    {
-      title: "Art",
-      icon: <Palette className="w-12 h-12" />,
-      progress: 90,
-      color: "bg-pink-100",
-    },
-    {
-      title: "Music",
-      icon: <Music className="w-12 h-12" />,
-      progress: 30,
-      color: "bg-orange-100",
-    },
-  ];
+  const handleSubjectClick = (subjectId: string) => {
+    navigate(`/subject/${subjectId}`);
+  };
+
+  const getSubjectIcon = (iconName: string) => {
+    const icons = {
+      Calculator: <Calculator className="w-5 h-5" />,
+      Microscope: <Microscope className="w-5 h-5" />,
+      Book: <Book className="w-5 h-5" />,
+      Globe: <Globe className="w-5 h-5" />,
+      Palette: <Palette className="w-5 h-5" />,
+      Music: <Music className="w-5 h-5" />,
+    };
+    return icons[iconName] || <Book className="w-5 h-5" />;
+  };
 
   useEffect(() => {
-    if (user?.age) {
-      // Filter subjects based on user's age
-      const ageGroup = user.age <= 5 ? "3-5" : user.age <= 8 ? "6-8" : "9-12";
-      // In a real app, you would filter based on subject's age range
-      setFilteredSubjects(subjects);
-    }
-  }, [user]);
+    const fetchSubjectsAndProgress = async () => {
+      try {
+        // Fetch courses with their subject relationships
+        const { data: coursesData } = await supabase.from("courses").select(`
+            *,
+            subject_courses!inner(
+              subjects!inner(*)
+            )
+          `);
 
-  return (
-    <div className="w-full h-full bg-white p-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center">
-        {filteredSubjects.map((subject, index) => (
-          <SubjectCard
-            key={index}
-            title={subject.title}
-            icon={subject.icon}
-            progress={subject.progress}
-            color={subject.color}
-            onClick={() => onSubjectClick(subject.title)}
-          />
+        if (coursesData) {
+          // Set featured courses (first 6)
+          setFeaturedCourses(coursesData.slice(0, 6));
+
+          // Set popular courses (sort by difficulty)
+          setPopularCourses(
+            [...coursesData]
+              .sort((a, b) => (a.difficulty === "beginner" ? -1 : 1))
+              .slice(0, 6),
+          );
+
+          // Set trending courses (random selection for demo)
+          setTrendingCourses(
+            [...coursesData].sort(() => Math.random() - 0.5).slice(0, 6),
+          );
+
+          // Set new courses (last 6)
+          setNewCourses(coursesData.slice(-6));
+        }
+
+        // Fetch main subjects
+        const { data: subjectsData } = await supabase
+          .from("subjects")
+          .select("*")
+          .is("parent_id", null);
+
+        setSubjects(subjectsData || []);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubjectsAndProgress();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const renderCourseSection = (title: string, courses: any[]) => (
+    <div className="mb-8">
+      <h2 className="text-2xl font-bold mb-4">{title}</h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+        {courses.map((course) => (
+          <div
+            key={course.id}
+            className="cursor-pointer"
+            onClick={() => navigate(`/course/${course.id}`)}
+          >
+            <Card className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow h-full">
+              <div className="aspect-video relative">
+                <img
+                  src={
+                    course.thumbnail_url ||
+                    `https://source.unsplash.com/random/800x600/?education,${encodeURIComponent(course.title)}`
+                  }
+                  alt={course.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <CardContent className="p-4">
+                <h3 className="font-semibold mb-1">{course.title}</h3>
+                <p className="text-sm text-gray-500 mb-2 line-clamp-2">
+                  {course.description}
+                </p>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span className="capitalize">{course.difficulty}</span>
+                  <span>•</span>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-yellow-500" />
+                    <span>{course.average_rating?.toFixed(1) || "New"}</span>
+                  </div>
+                  <span>•</span>
+                  <span>{course.estimated_duration} mins</span>
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  By{" "}
+                  {course.course_authors
+                    ?.map((ca) => ca.authors.name)
+                    .join(", ")}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         ))}
       </div>
+    </div>
+  );
+
+  return (
+    <div className="p-8 space-y-8">
+      {featuredCourses.length > 0 &&
+        renderCourseSection("Featured", featuredCourses)}
+      {popularCourses.length > 0 &&
+        renderCourseSection("Most Popular", popularCourses)}
+      {trendingCourses.length > 0 &&
+        renderCourseSection("Trending", trendingCourses)}
+      {newCourses.length > 0 && renderCourseSection("New Courses", newCourses)}
     </div>
   );
 };

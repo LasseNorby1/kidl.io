@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { createSubscription, stripePromise } from "@/lib/stripe";
+import { createSubscription } from "@/lib/stripe";
 import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
@@ -29,7 +29,7 @@ const SubscriptionModal = ({
     {
       name: "Basic",
       price: "9.99",
-      priceId: "price_basic", // Stripe Price ID
+      priceId: "price_1OytbDP1cWKjptHKxXGWxvxm", // Stripe Price ID
       features: [
         "Access to all subjects",
         "Basic progress tracking",
@@ -40,7 +40,7 @@ const SubscriptionModal = ({
     {
       name: "Family",
       price: "19.99",
-      priceId: "price_family", // Stripe Price ID
+      priceId: "price_1OytbDP1cWKjptHKxXGWxvxm", // Stripe Price ID
       features: [
         "Everything in Basic",
         "Up to 3 child accounts",
@@ -53,7 +53,7 @@ const SubscriptionModal = ({
     {
       name: "Premium",
       price: "29.99",
-      priceId: "price_premium", // Stripe Price ID
+      priceId: "price_1OytbDP1cWKjptHKxXGWxvxm", // Stripe Price ID
       features: [
         "Everything in Family",
         "Unlimited child accounts",
@@ -100,13 +100,27 @@ const SubscriptionModal = ({
                   onClick={async () => {
                     try {
                       setLoading(plan.name);
-                      await createSubscription(plan.priceId);
-                      onSubscribe(plan.name.toLowerCase());
+                      // For development, just simulate success
+                      if (process.env.NODE_ENV === "development") {
+                        await new Promise((resolve) =>
+                          setTimeout(resolve, 1000),
+                        );
+                        onSubscribe(plan.name.toLowerCase());
+                        toast({
+                          title: "Success",
+                          description:
+                            "Subscription activated (development mode)",
+                        });
+                      } else {
+                        await createSubscription(plan.priceId);
+                        onSubscribe(plan.name.toLowerCase());
+                      }
                     } catch (error: any) {
+                      console.error("Subscription error:", error);
                       toast({
                         title: "Error",
                         description:
-                          error.message || "Failed to create subscription",
+                          "Could not process subscription. Please try again later.",
                         variant: "destructive",
                       });
                     } finally {
