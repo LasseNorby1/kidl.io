@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -18,27 +19,40 @@ interface AuthModalProps {
 }
 
 const AuthModal = ({ open = true, onClose = () => {} }: AuthModalProps) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [isParent, setIsParent] = useState(true);
   const [parentEmail, setParentEmail] = useState("");
   const [age, setAge] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const { login, register } = useAuth();
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
     try {
+      console.log("Login attempt with:", email);
       await login(email, password);
+
       toast({
         title: "Success",
         description: "Logged in successfully",
       });
+
+      // Wait for auth state to update
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       onClose();
-      window.location.href = "/dashboard";
-    } catch (error) {
+      navigate("/dashboard", { replace: true });
+    } catch (error: any) {
       console.error("Login failed:", error);
+      setError(error.message || "Invalid email or password");
+      setIsLoading(false);
       toast({
         title: "Error",
         description: "Login failed. Please check your credentials.",
@@ -49,40 +63,31 @@ const AuthModal = ({ open = true, onClose = () => {} }: AuthModalProps) => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
     try {
-      if (isParent) {
-        await register(email, password, name, "parent");
-      } else {
-        if (!parentEmail) {
-          toast({
-            title: "Error",
-            description: "Parent email is required for child accounts",
-            variant: "destructive",
-          });
-          return;
-        }
-        await register(
-          email,
-          password,
-          name,
-          "child",
-          parentEmail,
-          parseInt(age),
-        );
-      }
-      onClose();
-      window.location.href = "/dashboard";
+      await register(email, password, name, "parent");
+
       toast({
         title: "Success",
         description: "Registered successfully",
       });
+
+      // Wait for auth state to update
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      onClose();
+      navigate("/dashboard", { replace: true });
     } catch (error: any) {
       console.error("Registration failed:", error);
+      setError(error.message || "Registration failed");
       toast({
         title: "Error",
         description: error.message || "Registration failed",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -121,8 +126,18 @@ const AuthModal = ({ open = true, onClose = () => {} }: AuthModalProps) => {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full">
-                Login
+              {error && (
+                <div className="text-sm text-red-500 mt-2">{error}</div>
+              )}
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent"></div>
+                    Logging in...
+                  </>
+                ) : (
+                  "Login"
+                )}
               </Button>
             </form>
           </TabsContent>
@@ -160,55 +175,19 @@ const AuthModal = ({ open = true, onClose = () => {} }: AuthModalProps) => {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Account Type</Label>
-                <div className="flex gap-4">
-                  <Button
-                    type="button"
-                    variant={isParent ? "default" : "outline"}
-                    onClick={() => setIsParent(true)}
-                  >
-                    Parent
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={!isParent ? "default" : "outline"}
-                    onClick={() => setIsParent(false)}
-                  >
-                    Child
-                  </Button>
-                </div>
-              </div>
-              {!isParent && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="age">Age</Label>
-                    <Input
-                      id="age"
-                      type="number"
-                      min="3"
-                      max="12"
-                      placeholder="Enter child's age"
-                      value={age}
-                      onChange={(e) => setAge(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="parent-email">Parent's Email</Label>
-                    <Input
-                      id="parent-email"
-                      type="email"
-                      placeholder="Enter parent's email"
-                      value={parentEmail}
-                      onChange={(e) => setParentEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                </>
+
+              {error && (
+                <div className="text-sm text-red-500 mt-2">{error}</div>
               )}
-              <Button type="submit" className="w-full">
-                Register
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent"></div>
+                    Registering...
+                  </>
+                ) : (
+                  "Register"
+                )}
               </Button>
             </form>
           </TabsContent>

@@ -6,17 +6,31 @@ export interface Subject {
   color: string;
 }
 
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: "beginner" | "intermediate" | "advanced";
+  estimated_duration: number;
+  thumbnail_url: string;
+  created_at: string;
+}
+
 export interface Lesson {
   id: string;
-  subject_id: string;
+  course_id: string;
   title: string;
   description: string;
   content: string;
-  age_range: string;
   difficulty: "beginner" | "intermediate" | "advanced";
   estimated_duration: number;
   order: number;
   created_at: string;
+}
+
+export interface SubjectCourse {
+  subject_id: string;
+  course_id: string;
 }
 
 export interface Activity {

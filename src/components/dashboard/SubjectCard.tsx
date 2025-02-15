@@ -23,10 +23,10 @@ const SubjectCard = ({
     <motion.div
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      className="w-[280px] cursor-pointer"
+      className="w-full h-full cursor-pointer"
       onClick={onClick}
     >
-      <Card className={`h-[300px] ${color} border-2 border-gray-200 shadow-lg`}>
+      <Card className={`h-full w-full ${color}`}>
         <CardHeader className="flex items-center justify-center pt-8">
           <div className="p-4 rounded-full bg-white shadow-md">{icon}</div>
           <h3 className="text-2xl font-bold mt-4 text-gray-800">{title}</h3>

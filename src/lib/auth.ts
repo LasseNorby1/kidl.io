@@ -9,22 +9,24 @@ interface User {
   name: string;
   role: UserRole;
   parentId?: string;
-  age?: number;
+  birthday?: string;
 }
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  isInitialized: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   register: (
     email: string,
     password: string,
     name: string,
     role: UserRole,
-    parentEmail?: string,
-    age?: number,
-  ) => Promise<void>;
+    parentId?: string,
+    birthday?: string,
+    autoLogin?: boolean,
+  ) => Promise<User>;
   linkChildAccount: (childEmail: string, parentId: string) => Promise<void>;
   getChildAccounts: (parentId: string) => Promise<User[]>;
 }
@@ -32,6 +34,7 @@ interface AuthState {
 export const useAuth = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
+  isInitialized: false,
 
   login: async (email: string, password: string) => {
     try {
@@ -42,27 +45,28 @@ export const useAuth = create<AuthState>((set) => ({
         });
 
       if (authError) throw authError;
+      if (!authData?.user) throw new Error("No user data returned");
 
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileData } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", authData.user.id)
         .single();
 
-      if (profileError) throw profileError;
+      if (profileData) {
+        const user: User = {
+          id: authData.user.id,
+          email: authData.user.email!,
+          name: profileData.name,
+          role: profileData.role,
+          parentId: profileData.parent_id,
+          birthday: profileData.birthday,
+        };
+        set({ user, isAuthenticated: true });
+      }
 
-      const user: User = {
-        id: authData.user.id,
-        email: authData.user.email!,
-        name: profileData.name,
-        role: profileData.role,
-        parentId: profileData.parent_id,
-        age: profileData.age,
-      };
-
-      set({ user, isAuthenticated: true });
+      return true;
     } catch (error) {
-      console.error("Login failed:", error);
       throw error;
     }
   },
@@ -73,7 +77,6 @@ export const useAuth = create<AuthState>((set) => ({
       if (error) throw error;
       set({ user: null, isAuthenticated: false });
     } catch (error) {
-      console.error("Logout failed:", error);
       throw error;
     }
   },
@@ -83,8 +86,9 @@ export const useAuth = create<AuthState>((set) => ({
     password: string,
     name: string,
     role: UserRole,
-    parentEmail?: string,
-    age?: number,
+    parentId?: string,
+    birthday?: string,
+    autoLogin: boolean = true,
   ) => {
     try {
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -93,141 +97,137 @@ export const useAuth = create<AuthState>((set) => ({
       });
 
       if (authError) throw authError;
-      if (!authData.user) throw new Error("User registration failed");
+      if (!authData?.user) throw new Error("Registration failed");
 
-      let parentId = null;
-      if (role === "child" && parentEmail) {
-        const { data: parentData, error: parentError } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("email", parentEmail)
-          .eq("role", "parent")
-          .single();
-
-        if (parentError || !parentData) {
-          throw new Error("Parent account not found");
-        }
-        parentId = parentData.id;
-      }
-
-      const { error: profileError } = await supabase.from("profiles").insert([
-        {
-          id: authData.user.id,
-          name,
-          role,
-          parent_id: parentId,
-          email,
-          age: age || null,
-        },
-      ]);
+      const { error: profileError } = await supabase.from("profiles").insert({
+        id: authData.user.id,
+        email,
+        name,
+        role,
+        parent_id: parentId,
+        birthday,
+      });
 
       if (profileError) throw profileError;
 
-      const user: User = {
+      const newUser: User = {
         id: authData.user.id,
         email,
         name,
         role,
         parentId,
-        age,
+        birthday,
       };
 
-      set({ user, isAuthenticated: true });
+      // Only set the auth state if autoLogin is true
+      if (autoLogin) {
+        set({ user: newUser, isAuthenticated: true });
+      }
+
+      return newUser;
     } catch (error) {
-      console.error("Registration failed:", error);
       throw error;
     }
   },
 
   linkChildAccount: async (childEmail: string, parentId: string) => {
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ parent_id: parentId })
-        .eq("email", childEmail)
-        .eq("role", "child");
+    const { error } = await supabase
+      .from("profiles")
+      .update({ parent_id: parentId })
+      .eq("email", childEmail)
+      .eq("role", "child");
 
-      if (error) throw error;
-    } catch (error) {
-      console.error("Failed to link child account:", error);
-      throw error;
-    }
+    if (error) throw error;
   },
 
   getChildAccounts: async (parentId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("parent_id", parentId)
-        .eq("role", "child");
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("parent_id", parentId)
+      .eq("role", "child");
 
-      if (error) throw error;
+    if (error) throw error;
 
-      return data.map((profile) => ({
-        id: profile.id,
-        email: profile.email,
-        name: profile.name,
-        role: profile.role,
-        parentId: profile.parent_id,
-        age: profile.age,
-      }));
-    } catch (error) {
-      console.error("Failed to get child accounts:", error);
-      throw error;
-    }
+    return data.map((profile) => ({
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      role: profile.role,
+      parentId: profile.parent_id,
+      birthday: profile.birthday,
+    }));
   },
 }));
 
-// Initialize auth state from session
-const initializeAuth = async () => {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (session?.user) {
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", session.user.id)
-      .single();
+let initialized = false;
 
-    if (profileData) {
-      const user: User = {
-        id: session.user.id,
-        email: session.user.email!,
-        name: profileData.name,
-        role: profileData.role,
-        parentId: profileData.parent_id,
-        age: profileData.age,
-      };
-      useAuth.setState({ user, isAuthenticated: true });
+export const initAuth = async () => {
+  if (initialized) return;
+  initialized = true;
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session?.user) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+
+      if (profileData) {
+        useAuth.setState({
+          user: {
+            id: session.user.id,
+            email: session.user.email!,
+            name: profileData.name,
+            role: profileData.role,
+            parentId: profileData.parent_id,
+            birthday: profileData.birthday,
+          },
+          isAuthenticated: true,
+          isInitialized: true,
+        });
+        return;
+      }
     }
+  } catch (error) {
+    console.error("Auth initialization error:", error);
   }
+
+  useAuth.setState({ user: null, isAuthenticated: false, isInitialized: true });
+
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === "SIGNED_IN" && session?.user) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+
+      if (profileData) {
+        useAuth.setState({
+          user: {
+            id: session.user.id,
+            email: session.user.email!,
+            name: profileData.name,
+            role: profileData.role,
+            parentId: profileData.parent_id,
+            birthday: profileData.birthday,
+          },
+          isAuthenticated: true,
+          isInitialized: true,
+        });
+      }
+    } else if (event === "SIGNED_OUT") {
+      useAuth.setState({
+        user: null,
+        isAuthenticated: false,
+        isInitialized: true,
+      });
+    }
+  });
 };
-
-initializeAuth();
-
-// Listen for auth changes
-supabase.auth.onAuthStateChange(async (event, session) => {
-  if (event === "SIGNED_IN" && session?.user) {
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", session.user.id)
-      .single();
-
-    if (profileData) {
-      const user: User = {
-        id: session.user.id,
-        email: session.user.email!,
-        name: profileData.name,
-        role: profileData.role,
-        parentId: profileData.parent_id,
-        age: profileData.age,
-      };
-      useAuth.setState({ user, isAuthenticated: true });
-    }
-  } else if (event === "SIGNED_OUT") {
-    useAuth.setState({ user: null, isAuthenticated: false });
-  }
-});

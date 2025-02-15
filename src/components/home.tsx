@@ -60,13 +60,6 @@ const Home = () => {
       <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
       {isAuthenticated && (
         <>
-          <Header
-            onSearch={handleSearch}
-            onVoiceSearch={handleVoiceSearch}
-            onParentModeToggle={() => {}}
-            isParentMode={isParentMode}
-          />
-
           <div className="flex">
             <div className="flex-1">
               {isParentMode ? (
