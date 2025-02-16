@@ -1,6 +1,6 @@
-import React from "react";
-import Header from "@/components/dashboard/Header";
-import Footer from "@/components/layout/Footer";
+import React from 'react';
+import Header from '@/components/dashboard/Header';
+import Footer from '@/components/layout/Footer';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -8,9 +8,9 @@ interface AppLayoutProps {
 
 const AppLayout = ({ children }: AppLayoutProps) => {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className='min-h-screen flex flex-col pt-20'>
       <Header />
-      <main className="flex-1">{children}</main>
+      <main className=''>{children}</main>
       <Footer />
     </div>
   );

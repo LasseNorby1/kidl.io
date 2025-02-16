@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from "react";
-import Header from "@/components/dashboard/Header";
-import AgeFilterBar from "@/components/dashboard/AgeFilterBar";
-import SubjectGrid from "@/components/dashboard/SubjectGrid";
-import ProgressSidebar from "@/components/dashboard/ProgressSidebar";
-import ParentDashboard from "@/components/dashboard/ParentDashboard";
-import SubscriptionModal from "@/components/dashboard/SubscriptionModal";
-import AuthModal from "@/components/auth/AuthModal";
-import { useAuth } from "@/lib/auth";
+import React, { useState, useEffect } from 'react';
+import Header from '@/components/dashboard/Header';
+import AgeFilterBar from '@/components/dashboard/AgeFilterBar';
+import SubjectGrid from '@/components/dashboard/SubjectGrid';
+import ProgressSidebar from '@/components/dashboard/ProgressSidebar';
+import ParentDashboard from '@/components/dashboard/ParentDashboard';
+import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
+import AuthModal from '@/components/auth/AuthModal';
+import { useAuth } from '@/lib/auth';
 
 const Home = () => {
   const { user, isAuthenticated } = useAuth();
-  const [selectedAge, setSelectedAge] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAge, setSelectedAge] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showSubscription, setShowSubscription] = useState(false);
   const [showAuth, setShowAuth] = useState(!isAuthenticated);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -53,22 +53,26 @@ const Home = () => {
     setShowSubscription(false);
   };
 
-  const isParentMode = user?.role === "parent";
+  const isParentMode = user?.role === 'parent';
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className='min-h-screen bg-background'>
       <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
       {isAuthenticated && (
         <>
-          <div className="flex">
-            <div className="flex-1">
+          <div className='flex'>
+            <div className='flex-1'>
               {isParentMode ? (
                 <ParentDashboard />
               ) : (
-                <SubjectGrid onSubjectClick={handleSubjectClick} />
+                <>
+                  <div className='w-full grid lg:grid-cols-2 gap-0'>
+                    {!isParentMode && <ProgressSidebar />}
+                    <SubjectGrid onSubjectClick={handleSubjectClick} />
+                  </div>
+                </>
               )}
             </div>
-            {!isParentMode && <ProgressSidebar />}
           </div>
 
           <SubscriptionModal

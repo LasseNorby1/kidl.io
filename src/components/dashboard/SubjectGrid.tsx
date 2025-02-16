@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Book,
   Calculator,
@@ -11,8 +11,9 @@ import {
   Microscope,
   Music,
   Palette,
+  Play,
   Star,
-} from "lucide-react";
+} from 'lucide-react';
 
 interface SubjectGridProps {
   onSubjectClick?: (subject: string) => void;
@@ -36,21 +37,21 @@ const SubjectGrid = ({
 
   const getSubjectIcon = (iconName: string) => {
     const icons = {
-      Calculator: <Calculator className="w-5 h-5" />,
-      Microscope: <Microscope className="w-5 h-5" />,
-      Book: <Book className="w-5 h-5" />,
-      Globe: <Globe className="w-5 h-5" />,
-      Palette: <Palette className="w-5 h-5" />,
-      Music: <Music className="w-5 h-5" />,
+      Calculator: <Calculator className='w-5 h-5' />,
+      Microscope: <Microscope className='w-5 h-5' />,
+      Book: <Book className='w-5 h-5' />,
+      Globe: <Globe className='w-5 h-5' />,
+      Palette: <Palette className='w-5 h-5' />,
+      Music: <Music className='w-5 h-5' />,
     };
-    return icons[iconName] || <Book className="w-5 h-5" />;
+    return icons[iconName] || <Book className='w-5 h-5' />;
   };
 
   useEffect(() => {
     const fetchSubjectsAndProgress = async () => {
       try {
         // Fetch courses with their subject relationships
-        const { data: coursesData } = await supabase.from("courses").select(`
+        const { data: coursesData } = await supabase.from('courses').select(`
             *,
             subject_courses!inner(
               subjects!inner(*)
@@ -64,13 +65,13 @@ const SubjectGrid = ({
           // Set popular courses (sort by difficulty)
           setPopularCourses(
             [...coursesData]
-              .sort((a, b) => (a.difficulty === "beginner" ? -1 : 1))
-              .slice(0, 6),
+              .sort((a, b) => (a.difficulty === 'beginner' ? -1 : 1))
+              .slice(0, 6)
           );
 
           // Set trending courses (random selection for demo)
           setTrendingCourses(
-            [...coursesData].sort(() => Math.random() - 0.5).slice(0, 6),
+            [...coursesData].sort(() => Math.random() - 0.5).slice(0, 6)
           );
 
           // Set new courses (last 6)
@@ -79,13 +80,13 @@ const SubjectGrid = ({
 
         // Fetch main subjects
         const { data: subjectsData } = await supabase
-          .from("subjects")
-          .select("*")
-          .is("parent_id", null);
+          .from('subjects')
+          .select('*')
+          .is('parent_id', null);
 
         setSubjects(subjectsData || []);
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
@@ -96,53 +97,58 @@ const SubjectGrid = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className='flex items-center justify-center h-full'>
+        <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-primary'></div>
       </div>
     );
   }
 
   const renderCourseSection = (title: string, courses: any[]) => (
-    <div className="mb-8">
-      <h2 className="text-2xl font-bold mb-4">{title}</h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+    <div className='mb-8'>
+      <h2 className='text-2xl font-semibold mb-4'>{title}</h2>
+      <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2'>
         {courses.map((course) => (
           <div
             key={course.id}
-            className="cursor-pointer"
+            className='cursor-pointer'
             onClick={() => navigate(`/course/${course.id}`)}
           >
-            <Card className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow h-full">
-              <div className="aspect-video relative">
+            <Card className='overflow-hidden cursor-pointer h-full group'>
+              <div className='aspect-video relative'>
                 <img
                   src={
                     course.thumbnail_url ||
-                    `https://source.unsplash.com/random/800x600/?education,${encodeURIComponent(course.title)}`
+                    `https://source.unsplash.com/random/800x600/?education,${encodeURIComponent(
+                      course.title
+                    )}`
                   }
                   alt={course.title}
-                  className="w-full h-full object-cover"
+                  className='w-full h-full object-cover'
                 />
+                <div className='absolute inset-0 p-2 flex items-center justify-center bg-black bg-opacity-50 text-white text-sm group-hover:opacity-100 opacity-0 transition-opacity duration-300'>
+                  <Play className='w-8 h-8' />
+                </div>
               </div>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-1">{course.title}</h3>
-                <p className="text-sm text-gray-500 mb-2 line-clamp-2">
+              <CardContent className='p-4'>
+                <h3 className='font-semibold mb-1'>{course.title}</h3>
+                <p className='text-sm text-gray-500 mb-2 line-clamp-2'>
                   {course.description}
                 </p>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <span className="capitalize">{course.difficulty}</span>
+                <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+                  <span className='capitalize'>{course.difficulty}</span>
                   <span>•</span>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-yellow-500" />
-                    <span>{course.average_rating?.toFixed(1) || "New"}</span>
+                  <div className='flex items-center gap-1'>
+                    <Star className='w-4 h-4 text-yellow-500' />
+                    <span>{course.average_rating?.toFixed(1) || 'New'}</span>
                   </div>
                   <span>•</span>
                   <span>{course.estimated_duration} mins</span>
                 </div>
-                <div className="text-sm text-gray-500 mt-1">
-                  By{" "}
+                <div className='text-sm text-muted-foreground mt-1'>
+                  By{' '}
                   {course.course_authors
                     ?.map((ca) => ca.authors.name)
-                    .join(", ")}
+                    .join(', ')}
                 </div>
               </CardContent>
             </Card>
@@ -153,14 +159,14 @@ const SubjectGrid = ({
   );
 
   return (
-    <div className="p-8 space-y-8">
+    <div className='p-8 space-y-8'>
       {featuredCourses.length > 0 &&
-        renderCourseSection("Featured", featuredCourses)}
+        renderCourseSection('Featured', featuredCourses)}
       {popularCourses.length > 0 &&
-        renderCourseSection("Most Popular", popularCourses)}
+        renderCourseSection('Most Popular', popularCourses)}
       {trendingCourses.length > 0 &&
-        renderCourseSection("Trending", trendingCourses)}
-      {newCourses.length > 0 && renderCourseSection("New Courses", newCourses)}
+        renderCourseSection('Trending', trendingCourses)}
+      {newCourses.length > 0 && renderCourseSection('New Courses', newCourses)}
     </div>
   );
 };
